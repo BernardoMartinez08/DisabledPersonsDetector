@@ -4,31 +4,43 @@ import pandas as pd
 from PIL import Image
 import numpy as np
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import base64
+import io
+
+
+def decode_image(image_str):
+    image_data = base64.b64decode(image_str)
+    image = Image.open(io.BytesIO(image_data))
+    return np.array(image)
 
 
 def load_data(data_file, image_size_x, image_size_y):
-    print("Loading data from", data_file)
+    print("\n\nLoading data from", data_file)
     data = pd.read_csv(data_file)
     images = []
     labels = data['labels'].tolist()
     print(f"Converting images to Gray scale and resizing to {image_size_x}x{image_size_y}")
-    for img_path in data['images']:
-        with Image.open(img_path) as img:
-            img = img.convert('L')
+    for img_str in data['images']:
+        print(f"Processing image {len(images) + 1}/{len(data)}", end='\r')
+        try:
+            img = decode_image(img_str)
+            img = Image.fromarray(img).convert('L')
             img = img.resize((image_size_x, image_size_y))
             img = np.array(img)
             images.append(img)
+        except (OSError, ValueError) as e:
+            print(f"Skipping image due to error: {e}")
     return np.array(images), np.array(labels)
 
 
 def preprocess_data(images, labels, augmentation_factor):
-    print("Preprocessing data")
-    print("Normalizing images")
+    print("\nPreprocessing data")
+    print("\nNormalizing images")
     images = images.astype('float32') / 255
-    print("Adding channel dimension")
+    print("\nAdding channel dimension")
     images = np.expand_dims(images, axis=-1)
 
-    print("Applying data augmentation")
+    print("\nApplying data augmentation")
     datagen = ImageDataGenerator(
         rotation_range=30,
         width_shift_range=0.25,
@@ -42,6 +54,7 @@ def preprocess_data(images, labels, augmentation_factor):
     augmented_images = []
     augmented_labels = []
     for i in range(len(images)):
+        print(f"Augmenting image {i + 1}/{len(images)}", end='\r')
         img = images[i].reshape((1,) + images[i].shape)  # Reshape to (1, 128, 128, 1)
         label = labels[i]
         aug_iter = datagen.flow(img, batch_size=1)
@@ -56,7 +69,7 @@ def preprocess_data(images, labels, augmentation_factor):
 
 
 def save_preprocessed_data(train_data, train_labels, val_data, val_labels, test_data, test_labels, output_file):
-    print("Saving preprocessed data to", output_file)
+    print("\nSaving preprocessed data to", output_file)
     np.savez(output_file,
              train_data=train_data, train_labels=train_labels,
              val_data=val_data, val_labels=val_labels,
@@ -91,7 +104,7 @@ def main(input_dir, output_dir):
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python preprocess.py <input_dir> <output_dir>")
+        print("Usage: python preprocess_images.py <input_dir> <output_dir>")
         sys.exit(1)
 
     input_dir = sys.argv[1]

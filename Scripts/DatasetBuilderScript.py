@@ -1,28 +1,50 @@
 import os
 import sys
-
-from PIL import Image
+import numpy as np
 import pandas as pd
+from PIL import Image
 from sklearn.model_selection import train_test_split
+import base64
+import io
 
 
-def load_images(folder, label):
-    print("\n\nLoading images from", folder)
+def encode_image(image_array):
+    pil_img = Image.fromarray(image_array)
+    buffer = io.BytesIO()
+    pil_img.save(buffer, format="PNG")
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    return img_str
+
+
+def load_images(folder, label, image_size=(128, 128), batch_size=1000):
+    print(f"\n\nLoading images from {folder}")
     images = []
     labels = []
-    for file in os.listdir(folder):
-        filepath = os.path.join(folder, file)
-        if file.endswith(".jpg") or file.endswith(".png"):
-            with Image.open(filepath) as img:
-                images.append(img.copy())
-            labels.append(label)
+    file_list = [f for f in os.listdir(folder) if f.endswith(".jpg") or f.endswith(".png")]
+
+    for i in range(0, len(file_list), batch_size):
+        print(f"Processing batch {i // batch_size + 1}/{len(file_list) // batch_size + 1}")
+        print(f"Percentage of photos loaded: {i / len(file_list) * 100:.2f}%")
+        batch_files = file_list[i:i + batch_size]
+        batch_images = []
+        for file in batch_files:
+            filepath = os.path.join(folder, file)
+            try:
+                with Image.open(filepath) as img:
+                    img = img.convert('L').resize(image_size)
+                    batch_images.append(np.array(img))
+            except (OSError, ValueError) as e:
+                print(f"Skipping file {filepath} due to error: {e}")
+        images.extend(batch_images)
+        labels.extend([label] * len(batch_images))
+
     return images, labels
 
 
 def create_dataset(images, labels):
     print("\nCreating dataset")
     data = pd.DataFrame()
-    data["images"] = images
+    data["images"] = [encode_image(img) for img in images]
     data["labels"] = labels
     return data
 
@@ -49,8 +71,8 @@ def save_dataset(data, filename):
 
 def main(positive_folder, negative_folder, output_folder):
     # Load images
-    positive_images, positive_labels = load_images(positive_folder, 1)
-    negative_images, negative_labels = load_images(negative_folder, 0)
+    positive_images, positive_labels = load_images(positive_folder, 1, image_size=(128, 128))
+    negative_images, negative_labels = load_images(negative_folder, 0, image_size=(128, 128))
 
     # Create datasets
     positive_data = create_dataset(positive_images, positive_labels)
@@ -77,7 +99,7 @@ def main(positive_folder, negative_folder, output_folder):
     save_dataset(validation_data, validation_path)
     save_dataset(test_data, test_path)
 
-    print("Training set size:", len(train_data))
+    print("\nTraining set size:", len(train_data))
     print("Validation set size:", len(validation_data))
     print("Test set size:", len(test_data))
 
