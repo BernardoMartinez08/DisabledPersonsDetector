@@ -1,6 +1,4 @@
 /Imagenes/
-/Datasets/PreprocessedData/preprocessed_data.npz
-/Datasets/Data/data.csv
-/Datasets/Data/test_data.csv
-/Datasets/Data/train_data.csv
-/Datasets/Data/validation_data.csv
+/Datasets/
+/Models/
+/Plots/

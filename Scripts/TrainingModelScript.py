@@ -3,7 +3,8 @@ import sys
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Dropout, Flatten, Dense, Input
+from tensorflow.keras.callbacks import EarlyStopping
 
 
 def load_preprocessed_data(data_file):
@@ -17,7 +18,8 @@ def load_preprocessed_data(data_file):
 def build_model(input_shape):
     print("Building model")
     model = Sequential([
-        Conv2D(32, (3, 3), activation='relu', input_shape=input_shape),
+        Input(shape=input_shape),
+        Conv2D(32, (3, 3), activation='relu'),
         MaxPooling2D(2, 2),
         Conv2D(64, (3, 3), activation='relu'),
         MaxPooling2D(2, 2),
@@ -30,20 +32,22 @@ def build_model(input_shape):
     return model
 
 
-def train_model(model, train_data, train_labels, val_data, val_labels, batch_size=32, epochs=60):
+def train_model(model, train_data, train_labels, val_data, val_labels, batch_size, epochs):
     print("Starting training")
+    early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
     history = model.fit(
         train_data, train_labels,
         epochs=epochs,
         batch_size=batch_size,
-        validation_data=(val_data, val_labels)
+        validation_data=(val_data, val_labels),
+        callbacks=[early_stopping]
     )
     return history
 
 
 def save_model(model, model_path):
-    print("Saving model to", model_save_path)
-    model.save(model_save_path)
+    print("Saving model to", model_path)
+    model.save(model_path)
 
 
 def save_history(history, history_path):
@@ -57,11 +61,11 @@ def main(data_file, model_save_path):
 
     # Build and train model
     model = build_model(train_data.shape[1:])
-    history = train_model(model, train_data, train_labels, val_data, val_labels)
+    history = train_model(model, train_data, train_labels, val_data, val_labels, 32, 60)
 
     # Save model and history
     os.makedirs(model_save_path, exist_ok=True)
-    model_path = os.path.join(model_save_path, 'disables_persons_detector_model.h5')
+    model_path = os.path.join(model_save_path, 'disabled_persons_detector_model.keras')
     history_path = os.path.join(model_save_path, 'history.npy')
 
     save_model(model, model_path)
