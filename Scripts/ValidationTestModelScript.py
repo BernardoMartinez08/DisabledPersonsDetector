@@ -97,6 +97,7 @@ def evaluate_model(model, test_data, test_labels, cm_plot_file):
 def main(data_file, model_path, plots_path):
     # Load data
     train_data, train_labels, val_data, val_labels, test_data, test_labels = load_preprocessed_data(data_file)
+    print_preprocessed_data_info(train_data, val_data, test_data)
 
     # Define paths
     model_file = os.path.join(model_path, 'disabled_persons_detector_model.keras')
